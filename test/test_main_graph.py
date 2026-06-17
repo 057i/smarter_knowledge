@@ -1,14 +1,16 @@
 import json
-
-import sys
+from pathlib import Path
 
 from core.logger import logger
-from graph.main_graph import graph
-from graph.state import create_default_state
+from graph.import_process.main_graph import graph
+from graph.import_process.state import create_default_state
+from utils.path_util import PROJECT_ROOT
 
 logger.info("===== 开始测试 =====")
 
-initial_state = create_default_state(local_file_path="万用表RS-12的使用.pdf", is_pdf_read_enable=True)
+initial_state = create_default_state(local_file_path="万用表RS-12的使用.pdf", is_pdf_read_enable=True,
+
+                                     )
 final_state = None
 
 # 只输出更最终的状态值（字典形式），不包含节点名称、执行日志、元数据等额外信息

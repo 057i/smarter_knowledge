@@ -85,7 +85,7 @@ def add_running_task(task_id: str, node_name: str, is_stream: bool = False) -> N
 
 def add_done_task(task_id: str, node_name: str, is_stream: bool = False) -> None:
     """
-    添加“已完成”的节点任务。
+    添加“已完成”的节点任务，即添加完成状态
 
     注意：添加已完成任务时，会把同名的“正在运行”任务删除。
 
