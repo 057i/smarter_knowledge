@@ -36,21 +36,22 @@ def step1_get_node_params(state: ImportGraphState) -> tuple:
     :return: 返回path类型的md文件地址和md文件内容
     """
 
-    md_path = state["md_path"]
-    md_content = state["md_content"]
-    md_path_obj = Path(md_path)
+    _md_path = state["md_path"]
+    _md_content = state["md_content"]
+    _md_path_obj = Path(_md_path)
+    _file_title = state["file_title"]
 
     # 校验md文件地址
-    if not md_path or not md_path_obj.exists():
-        logger.error(f"文件参数不存在/文件不存在,请检查文件路径是否正确{md_path}")
-        raise FileNotFoundError(f"文件参数不存在/文件不存在,请检查文件路径是否正确{md_path}")
+    if not _md_path or not _md_path_obj.exists():
+        logger.error(f"文件参数不存在/文件不存在,请检查文件路径是否正确{_md_path}")
+        raise FileNotFoundError(f"文件参数不存在/文件不存在,请检查文件路径是否正确{_md_path}")
 
     # 校验md内容，没有就再去读一次
-    if not md_content:
-        with open(md_path_obj, "r", encoding="utf-8") as f:
-            md_content = f.read()
+    if not _md_content:
+        with open(_md_path_obj, "r", encoding="utf-8") as f:
+            _md_content = f.read()
 
-    return md_path_obj, md_content
+    return _md_path_obj, _md_content
 
 
 def step2_get_real_md_img_path(md_content: str, md_images_dir: Path) -> list:
@@ -62,11 +63,11 @@ def step2_get_real_md_img_path(md_content: str, md_images_dir: Path) -> list:
     """
 
     files = md_images_dir.rglob("*")
-    list = []
+    img_list = []
     for file in files:
         if file.name in md_content:
-            list.append(file)
-    return list
+            img_list.append(file)
+    return img_list
 
 
 def find_img_context(md_content: str, img_name: str, context_len=100):
@@ -89,7 +90,8 @@ def find_img_context(md_content: str, img_name: str, context_len=100):
 def step4_analysis_md_img(md_name: str, online_urls_map: dict) -> dict:
     """
     把图片和图片所在上下文截取发给模型写摘要
-    :param online_urls_map:
+    :param md_name:
+    :param online_urls_map
     :return:
     """
     summary_and_urls_map = copy.deepcopy(online_urls_map)
@@ -131,15 +133,17 @@ def step4_analysis_md_img(md_name: str, online_urls_map: dict) -> dict:
     return summary_and_urls_map
 
 
-def step5_replace_md_img_content(md_content, analysis_md_img_result: dict):
+def step5_replace_md_img_content(md_content: str = '', summary_and_urls_map: dict | None = None):
     """
     用正则匹配替换掉简介和图片地址
     :param md_content: 
-    :param analysis_md_img_result: 
+    :param summary_and_urls_map:
     :return: 
     """
     _md_content = md_content
-    for local_img_name, img_info in analysis_md_img_result.items():
+    if not summary_and_urls_map or not summary_and_urls_map.items():
+        raise ValueError("minio上传解析失败，没有图片信息")
+    for local_img_name, img_info in summary_and_urls_map.items():
         _md_content = re.sub(fr"!\[([^\]]*)\]\((images/{Path(local_img_name).name})\)",
                              fr"![{img_info['summary']}]({img_info['online_path']})", _md_content)
 
@@ -162,49 +166,48 @@ def node_analysis_md_img(state: ImportGraphState):
     current_func_name = get_current_func_name()
     logger.info(f"进入了函数{current_func_name}")
 
-    md_path_obj, md_content = step1_get_node_params(state)
+    _md_path_obj, _md_content = step1_get_node_params(state)
     # md图片目录
-    md_images_dir = md_path_obj.parents[0] / "images"
+    _md_images_dir = _md_path_obj.parents[0] / "images"
 
-    if not md_images_dir.exists() or not md_images_dir.rglob("*"):
+    if not _md_images_dir.exists() or not any(_md_images_dir.iterdir()):
         logger.warning(f"没有图片目录，跳过图片处理")
         return state
 
     # 准备图片路径
-    prepare_img_path = step2_get_real_md_img_path(md_content=md_content, md_images_dir=md_images_dir)
+    prepare_img_path = step2_get_real_md_img_path(md_content=_md_content, md_images_dir=_md_images_dir)
 
     # 上传图片到minio,获取映射
     flag = is_minio_avilable()
     logger.info(f"minio服务可用性{flag}")
     if not flag:
         logger.warning(f"minio服务不可用，请检查minio服务是否正常")
-        # return state
+        return state
+    prefix = _md_path_obj.stem + "/images/"
 
-    online_urls_map = batch_upload_to_minio(prepare_img_path)
+    online_urls_map = batch_upload_to_minio(file_paths=prepare_img_path, prefix=prefix)
 
     # 用键值对格式
     online_urls_map = {
         img_name: {"online_path": online_path, "summary": '',
-                   "context": find_img_context(md_content=md_content, img_name=Path(img_name).name)}
+                   "context": find_img_context(md_content=_md_content, img_name=Path(img_name).name)}
         for img_name, online_path in online_urls_map.items()
     }
-
     # 把图片交给视觉模型分析，生成摘要，过滤失败图片
-    summary_and_urls_map = step4_analysis_md_img(md_name=md_path_obj.stem, online_urls_map=online_urls_map)
-
+    summary_and_urls_map = step4_analysis_md_img(md_name=_md_path_obj.stem, online_urls_map=online_urls_map)
     # 用摘要和图片替换md_content中的内容并且新建一个本地文件
     # 图片示例
     # ![](images / 048c005b198be5c9fff80ad6a6ba02496f38fa109ec20dbaabde3110f3eb1574.jpg)
 
-    final_md_content = step5_replace_md_img_content(md_content, summary_and_urls_map)
+    final_md_content = step5_replace_md_img_content(md_content=_md_content, summary_and_urls_map=summary_and_urls_map)
     logger.info(f"替换后的md_content：{final_md_content}")
 
     state["md_content"] = final_md_content
 
     # 备份md_content文件到本地
-    step6_backup_md_file(origin_md_path_obj=md_path_obj, new_md_content=final_md_content)
+    step6_backup_md_file(origin_md_path_obj=_md_path_obj, new_md_content=final_md_content)
 
-    logger.info(f"离开了函数{current_func_name}")
+    logger.info(f"离开了函数{current_func_name}，state状态为：{state}")
 
     return state
 

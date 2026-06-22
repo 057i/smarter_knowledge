@@ -3,7 +3,7 @@ from pathlib import Path
 
 from core.logger import logger
 from graph.import_process.state import ImportGraphState
-from utils.task_utils import add_running_task, add_done_task
+from utils.task_util import add_running_task, add_done_task
 
 
 def node_entry(state: ImportGraphState):

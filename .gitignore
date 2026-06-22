@@ -221,3 +221,5 @@ __marimo__/
 doc/
 doc/*.zip
 doc/*.pdf
+
+pages/

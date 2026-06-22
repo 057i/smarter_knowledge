@@ -83,7 +83,7 @@ def step1_upload_to_mineru(state: ImportGraphState) -> str:
 
 def step2_get_progress(state: ImportGraphState, batch_id: str,
                        on_success: Callable[[ImportGraphState, str], None] | None):
-    zip_upload_url = ""  # zip下载地址
+    # zip_upload_url = ""  # zip下载地址
     interval = 5
     timeout_seconds = 600  # 超时秒数
     start_time = time.time()
@@ -102,7 +102,6 @@ def step2_get_progress(state: ImportGraphState, batch_id: str,
             raise TimeoutError(f"获取pdf文件解析进度超时")
         time.sleep(interval)
         res = requests.get(url, headers=header)
-
         if res.status_code == 200 and res.json()["code"] == 0:
             try:
                 result = res.json()["data"]["extract_result"]
@@ -127,9 +126,12 @@ def step3_upload_zip_to_local(state: ImportGraphState, zip_upload_url: str):
 
     response = requests.get(zip_upload_url)
     local_dir = state["local_dir"]
-
+    md_path = ''
     local_dir_obj = Path(local_dir)
     file_title = state["file_title"]
+    extract_zip_dir = local_dir_obj / file_title  # md文件夹解压路径
+    md_target_path_str = str(extract_zip_dir / f"{file_title}.md")  # 最终的md文件保存路径
+
     zip_save_path = local_dir_obj / f"{file_title}_result.zip"
     if response.status_code == 200:
         logger.info(f"下载zip文件成功,即将保存zip文件到本地")
@@ -137,7 +139,6 @@ def step3_upload_zip_to_local(state: ImportGraphState, zip_upload_url: str):
             f.write(response.content)
         logger.info(f"保存zip文件到本地,保存路径为{zip_save_path}")
 
-        extract_zip_dir = local_dir_obj / file_title
         if extract_zip_dir.exists():
             shutil.rmtree(extract_zip_dir)
 
@@ -149,7 +150,6 @@ def step3_upload_zip_to_local(state: ImportGraphState, zip_upload_url: str):
         # 找到文件夹下的md文件，改名为文件夹名.md
         md_list = extract_zip_dir.rglob("*.md")
         md_list = list(md_list)
-
         target_name = extract_zip_dir.stem + ".md"
         if md_list:
             if md_list[0].name != target_name:
@@ -159,13 +159,27 @@ def step3_upload_zip_to_local(state: ImportGraphState, zip_upload_url: str):
                 # target_md_file.rename(target_md_file.with_name(f"{stem}.md")) 修改磁盘中的文件名称（修改名称了） return 新的路径path
 
                 target_md_file.rename(target_md_file.with_name(target_name))
-                logger.info(f"文件名解压成功,保存路径为{target_name}")
+                logger.info(f"文件名为{target_name}")
 
             else:
                 logger.info(f"文件夹同名md文件已存在，无需处理")
 
+            # 这时候有md文件就是想要的文件路径
+            md_path = target_name
         else:
             logger.error(f"未找到md文件")
+            raise RuntimeWarning(f"mineru上传完下载，解压后未找到md文件")
+
+    logger.info(f"zip文件的md文档解压成功,保存路径为{md_target_path_str}")
+    if md_path:
+        state["md_path"] = md_target_path_str
+
+    if md_target_path_str:
+        md_content = ''
+        with open(md_target_path_str, "r", encoding="utf-8") as f:
+            md_content = f.read()
+
+        state["md_content"] = md_content
 
 
 def node_pdf_to_md(state: ImportGraphState):
@@ -184,7 +198,10 @@ def node_pdf_to_md(state: ImportGraphState):
     if batch_id:
         step2_get_progress(state, batch_id=batch_id,
                            on_success=lambda state, full_zip_url: step3_upload_zip_to_local(state, full_zip_url))
-    logger.info(f"离开了函数{sys._getframe().f_code.co_name}")
+
+    logger.info(f"离开了函数{sys._getframe().f_code.co_name}，state状态{state}")
+
+    return state
 
 
 if __name__ == '__main__':

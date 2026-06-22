@@ -26,7 +26,7 @@ class ImportGraphState(TypedDict):
 
     #     内容数据
     md_content: str  # md文件内容
-    chunks: list  # 切块数据,包含metadata
+    chunks: list  # 切块数据,后续做双路embedding的字段，包含metadata
     item_name: str  # 主体名称，用于增强检索
 
     #     数据库相关

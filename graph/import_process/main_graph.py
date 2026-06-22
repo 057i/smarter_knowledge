@@ -55,4 +55,4 @@ graph_builder.add_edge("node_item_name_recognition", "node_document_chunk_embedd
 graph_builder.add_edge("node_document_chunk_embedding", "node_chunk_embeddinged_to_milvus")
 graph_builder.add_edge("node_chunk_embeddinged_to_milvus", END)
 
-graph = graph_builder.compile()
+knowledge_import_graph = graph_builder.compile()

@@ -54,7 +54,7 @@ def set_bucket_policy():
     logger.info(f"minio存储桶[{bucket_name}]已配置公网只读策略，支持匿名URL访问")
 
 
-def batch_upload_to_minio(file_paths: list[Path] = None) -> dict[str, str]:
+def batch_upload_to_minio(file_paths: list[Path] = None, prefix: str = '') -> dict[str, str]:
     """
         批量上传文件到minio
         :param
@@ -63,7 +63,8 @@ def batch_upload_to_minio(file_paths: list[Path] = None) -> dict[str, str]:
     """
     logger.info(f"开始批量上传文件到minio")
     try:
-        urls_map = {str(file_path).replace("\\", "/"): upload_to_minio(file_path) for file_path in file_paths}
+        urls_map = {str(file_path).replace("\\", "/"): upload_to_minio(file_path=file_path, prefix=prefix) for file_path
+                    in file_paths}
         return urls_map
 
     except Exception as e:
@@ -71,7 +72,7 @@ def batch_upload_to_minio(file_paths: list[Path] = None) -> dict[str, str]:
         raise f"批量上传文件到minio失败{e}"
 
 
-def upload_to_minio(file_path: Path = None) -> str:
+def upload_to_minio(file_path: Path = None, prefix: str = '') -> str:
     """
         上传单个文件到minio，用流传 避免大文件
         :param
@@ -93,12 +94,12 @@ def upload_to_minio(file_path: Path = None) -> str:
 
         minio_client.fput_object(
             bucket_name=bucket_name,
-            object_name=file_path.name,
+            object_name=prefix + file_path.name,  # 这里手动拼前缀/，会自动创建文件夹
             file_path=str(file_path),
             content_type=content_type,  # 不加或者加错会变成下载
         )
         # 拼接url
-        file_url = f"{'https' if minio_config.minio_secure else 'http'}://{minio_config.endpoint}/{bucket_name}/{file_path.name}"
+        file_url = f"{'https' if minio_config.minio_secure else 'http'}://{minio_config.endpoint}/{bucket_name}/{prefix}{file_path.name}"
         return file_url
     except Exception as e:
         logger.error(f"上传文件到minio失败{e}")
