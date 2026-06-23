@@ -1,15 +1,13 @@
 import json
 import sys
 
-from langchain_core import messages
-from sqlalchemy.ext.asyncio import result
-
 from conf.llm_config import llm_config
 from core.load_prompt import load_prompt
 from core.logger import logger
 from graph.import_process.state import ImportGraphState, create_default_state
 from utils.llm_util import get_llm_client
 from utils.path_util import PROJECT_ROOT
+from utils.task_util import add_running_task
 
 DEFAULT_ITEM_NAME_CHUNK_K = 5
 # 单个切片内容截断长度：防止单切片内容过长，占满大模型上下文
@@ -191,6 +189,8 @@ def node_item_name_recognition(state: ImportGraphState):
     :return: 当前节点处理后的 state
     """
     func_name = sys._getframe().f_code.co_name
+    add_running_task(state["task_id"], func_name)
+
     logger.info(f"进入了函数{func_name}")
 
     file_title, _chunks = step1_get_node_params(state=state)

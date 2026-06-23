@@ -1,6 +1,7 @@
 import copy
 import re
 import shutil
+import sys
 from pathlib import Path
 
 from langchain_core.messages import HumanMessage
@@ -10,9 +11,9 @@ from core.logger import logger
 from graph.import_process.state import ImportGraphState, create_default_state
 from utils.llm_util import get_llm_client
 from utils.minio_util import batch_upload_to_minio, is_minio_avilable
-from utils.other import get_current_func_name
 from utils.path_util import PROJECT_ROOT
 from core.load_prompt import load_prompt
+from utils.task_util import add_running_task
 
 """
     该节点实现的功能是将本地存储的md文档上传到minio，转换成在线md文档(如果不用minio那就把本地图片转成base64格式)
@@ -163,8 +164,10 @@ def step6_backup_md_file(origin_md_path_obj: Path, new_md_content: str):
 
 
 def node_analysis_md_img(state: ImportGraphState):
-    current_func_name = get_current_func_name()
-    logger.info(f"进入了函数{current_func_name}")
+    func_name = sys._getframe().f_code.co_name
+    add_running_task(state["task_id"], func_name)
+
+    logger.info(f"进入了函数{func_name}")
 
     _md_path_obj, _md_content = step1_get_node_params(state)
     # md图片目录
@@ -207,7 +210,7 @@ def node_analysis_md_img(state: ImportGraphState):
     # 备份md_content文件到本地
     step6_backup_md_file(origin_md_path_obj=_md_path_obj, new_md_content=final_md_content)
 
-    logger.info(f"离开了函数{current_func_name}，state状态为：{state}")
+    logger.info(f"离开了函数{func_name}，state状态为：{state}")
 
     return state
 

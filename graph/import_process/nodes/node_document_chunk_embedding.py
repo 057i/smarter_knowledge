@@ -3,6 +3,7 @@ import sys
 from core.logger import logger
 from graph.import_process.state import ImportGraphState, create_default_state
 from utils.embedding_util import get_bge_m3_ef, generate_embeddings
+from utils.task_util import add_running_task
 
 """
 该节点用来将切分的文档利用embedding模型，来生成对应的稠密和稀疏向量，因为稀疏向量是用点积做的，
@@ -72,7 +73,9 @@ def step3_generate_embeddings(required_chunks: list):
 
 
 def node_document_chunk_embedding(state: ImportGraphState):
-    logger.info(f"进入了函数{sys._getframe().f_code.co_name}")
+    func_name = sys._getframe().f_code.co_name
+    add_running_task(state["task_id"], func_name)
+    logger.info(f"进入了函数{func_name}")
 
     # 1.加载需要的数据
     required_chunks = step1_validate_params(state)
@@ -85,7 +88,7 @@ def node_document_chunk_embedding(state: ImportGraphState):
 
     # 4.更新state状态  将稠密和稀疏向量存起来给后续节点用
     state["chunks"] = output_chunks
-    logger.info(f"离开了函数{sys._getframe().f_code.co_name}，state状态为：{state}")
+    logger.info(f"离开了函数{func_name}，state状态为：{state}")
 
     return state
 

@@ -1,9 +1,22 @@
+import os
+
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
+from core.logger import logger
 from utils.path_util import PROJECT_ROOT
 
 app = FastAPI()
+
+# 跨域中间件配置：解决前端调用后端接口的跨域限制
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有前端域名访问（生产环境建议指定具体域名）
+    allow_credentials=True,  # 允许携带Cookie等认证信息
+    allow_methods=["*"],  # 允许所有HTTP方法（GET/POST/PUT/DELETE等）
+    allow_headers=["*"],  # 允许所有请求头
+)
 
 
 @app.get("/")
@@ -30,7 +43,7 @@ async def upload(file: UploadFile = File(..., description="单文件上传",
                  remarks: str = ""):
     try:
         # 允许文件类型
-        ALLOW_FILE_TYPES = ["image/jepg", "image/png", "image/gif"]
+        ALLOW_FILE_TYPES = ["image/jpeg", "image/png", "image/gif"]
         if file.content_type not in ALLOW_FILE_TYPES:
             raise HTTPException(status_code=400, detail=f"文件类型不允许,仅支持{','.join(ALLOW_FILE_TYPES)}文件类型")
 
@@ -43,7 +56,7 @@ async def upload(file: UploadFile = File(..., description="单文件上传",
         # 流式写入
         with open(upload_file_path, "wb") as buffer:
             while True:
-                # 每次读5M
+                # 每次读5M,防止大文件阻塞
                 chunk = await file.read(CHUNK_SIZE)
                 if not chunk:
                     break
@@ -65,7 +78,13 @@ async def upload(file: UploadFile = File(..., description="单文件上传",
         raise HTTPException(status_code=500, detail=f"文件上传失败:{e}")
 
 
+
+
+
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # app名字是按路径来的，开启热更新
+    uvicorn.run("service.query:app", host="0.0.0.0", port=8000, reload=True)

@@ -8,6 +8,7 @@ from conf.embedding_config import embedding_config
 from core.logger import logger
 from graph.import_process.state import ImportGraphState, create_default_state
 from utils.milvus_util import get_milvus_client
+from utils.task_util import add_running_task
 from utils.utils import escape_milvus_string
 
 """
@@ -150,7 +151,10 @@ def step4_handle_insert_data(milvus_client, chunk_json_data, collection_name):
 
 
 def node_chunk_embeddinged_to_milvus(state: ImportGraphState):
-    logger.info(f"进入了函数{sys._getframe().f_code.co_name}")
+    func_name = sys._getframe().f_code.co_name
+    add_running_task(state["task_id"], func_name)
+    logger.info(f"进入了函数{func_name}")
+
     # 1. 提取state中的要用到的参数chunks, 并做校验
     chunk_json_data = step1_validate_params(state)
 
@@ -167,7 +171,8 @@ def node_chunk_embeddinged_to_milvus(state: ImportGraphState):
     updated_chunks = step4_handle_insert_data(milvus_client=milvus_client, chunk_json_data=chunk_json_data,
                                               collection_name=milvus_config.chunks_collection)
     state["chunks"] = updated_chunks
-    logger.info(f"离开了函数{sys._getframe().f_code.co_name}")
+
+    logger.info(f"离开了函数{func_name}")
     return state
 
 

@@ -13,19 +13,22 @@
             display: flex;
             justify-content: center;
         }
+
         .container {
             width: 100%;
             max-width: 800px;
             background-color: white;
             padding: 30px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+
         h1 {
             color: #2c3e50;
             text-align: center;
             margin-bottom: 30px;
         }
+
         .upload-area {
             border: 2px dashed #3498db;
             border-radius: 8px;
@@ -35,17 +38,21 @@
             transition: background-color 0.3s;
             margin-bottom: 20px;
         }
+
         .upload-area:hover {
             background-color: #ecf6fd;
         }
+
         .upload-icon {
             font-size: 48px;
             color: #3498db;
             margin-bottom: 10px;
         }
+
         .file-input {
             display: none;
         }
+
         .btn {
             background-color: #3498db;
             color: white;
@@ -56,16 +63,20 @@
             font-size: 16px;
             transition: background-color 0.3s;
         }
+
         .btn:hover {
             background-color: #2980b9;
         }
+
         .btn:disabled {
             background-color: #bdc3c7;
             cursor: not-allowed;
         }
+
         .file-list {
             margin-top: 30px;
         }
+
         .file-item {
             background-color: #fff;
             border: 1px solid #e0e0e0;
@@ -76,21 +87,25 @@
             justify-content: space-between;
             align-items: center;
         }
+
         .file-info {
             display: flex;
             flex-direction: column;
             flex: 1;
             margin-right: 20px;
         }
+
         .file-name {
             font-weight: 600;
             color: #333;
         }
+
         .file-size {
             font-size: 12px;
             color: #7f8c8d;
             margin-top: 4px;
         }
+
         .status-badge {
             padding: 5px 10px;
             border-radius: 15px;
@@ -100,11 +115,23 @@
             min-width: 80px;
             text-align: center;
         }
-        .status-uploading { background-color: #f39c12; }
-        .status-processing { background-color: #3498db; }
-        .status-completed { background-color: #2ecc71; }
-        .status-error { background-color: #e74c3c; }
-        
+
+        .status-uploading {
+            background-color: #f39c12;
+        }
+
+        .status-processing {
+            background-color: #3498db;
+        }
+
+        .status-completed {
+            background-color: #2ecc71;
+        }
+
+        .status-error {
+            background-color: #e74c3c;
+        }
+
         /* 简单的进度条 */
         .progress-bar-container {
             width: 100%;
@@ -115,6 +142,7 @@
             overflow: hidden;
             display: none;
         }
+
         .progress-bar {
             height: 100%;
             background-color: #f39c12;
@@ -128,15 +156,18 @@
             font-size: 12px;
             color: #7f8c8d;
         }
+
         .log-details summary {
             cursor: pointer;
             user-select: none;
             color: #6c7a89;
         }
+
         .log-list {
             margin: 6px 0 0 16px;
             padding: 0;
         }
+
         .log-list li {
             margin: 2px 0;
             line-height: 1.4;
@@ -147,7 +178,7 @@
 
 <div class="container">
     <h1>📄 知识库文件导入</h1>
-    
+
     <div class="upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
         <div class="upload-icon">☁️</div>
         <p>点击或拖拽文件到此处 (PDF/MD)</p>
@@ -163,9 +194,9 @@
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const fileList = document.getElementById('fileList');
-    
+
     // 模拟后端API地址
-    const API_BASE = 'http://127.0.0.1:8000';
+    const API_BASE = 'http://127.0.0.1:8001';
 
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -238,13 +269,13 @@
             // 模拟上传进度
             updateProgressBar(progressBar, 50);
 
-            const response = await fetch(`${API_BASE}/upload`, {
+            const response = await fetch(`${API_BASE}/upload_file`, {
                 method: 'POST',
                 body: formData
             });
 
             if (!response.ok) throw new Error('Upload failed');
-            
+
             const result = await response.json();
             const taskId = result.task_ids[0]; // 假设一次传一个或取第一个
 
@@ -301,6 +332,7 @@
         } else {
             for (const line of lines) {
                 const li = document.createElement('li');
+                li.className = 'log-line';
                 li.textContent = line;
                 logListEl.appendChild(li);
             }
@@ -315,7 +347,7 @@
     function pollStatus(taskId, itemEl) {
         const statusBadge = itemEl.querySelector('.status-badge');
         const progressBar = itemEl.querySelector('.progress-bar');
-        
+
         const interval = setInterval(async () => {
             try {
                 const res = await fetch(`${API_BASE}/status/${taskId}`);
@@ -323,7 +355,7 @@
 
                 // 渲染日志（done/running）
                 renderLogs(itemEl, data.done_list, data.running_list);
-                
+
                 if (data.status === 'completed') {
                     statusBadge.textContent = '已完成';
                     statusBadge.className = 'status-badge status-completed';
@@ -332,8 +364,8 @@
                 } else if (data.status === 'processing') {
                     // 保持处理中状态
                     statusBadge.textContent = '处理中...';
-                    // 确保进度为30%
-                     updateProgressBar(progressBar, 30);
+                    // 确保进度为30%，暂时还没想到怎么更好获取进度方法
+                    updateProgressBar(progressBar, 30);
                 } else if (data.status === 'failed') {
                     statusBadge.textContent = '失败';
                     statusBadge.className = 'status-badge status-error';

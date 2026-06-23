@@ -7,8 +7,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from core.logger import logger
 from graph.import_process.state import ImportGraphState, create_default_state
-from utils.other import get_current_func_name
 from utils.path_util import PROJECT_ROOT
+from utils.task_util import add_running_task
 
 """
 这个节点主要做的是将md_content中的内容切分，步骤有
@@ -152,7 +152,9 @@ def step4_refine_chunks(sessions: list[dict]) -> list[dict]:
 
 
 def node_split_document(state: ImportGraphState) -> ImportGraphState:
-    func_name = get_current_func_name()
+    func_name = sys._getframe().f_code.co_name
+    add_running_task(state["task_id"], func_name)
+
     logger.info(f"进入节点函数: {func_name}")
 
     md_content, file_title = step1_get_node_params(state)

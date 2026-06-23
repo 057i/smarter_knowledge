@@ -13,6 +13,7 @@ def node_entry(state: ImportGraphState):
     2.校验文件是否存在，存在的话还需要继续校验是md/pdf还是其他文件
     """
 
+
     func_name = sys._getframe().f_code.co_name
     logger.info(f"进入了节点{func_name}")
     # 告诉前端开始任务了
@@ -42,6 +43,5 @@ def node_entry(state: ImportGraphState):
         logger.error(f"节点{func_name}运行错误，{file_name_with_suffix}是不支持的文件类型")
         return state
 
-    add_done_task(state["task_id"], func_name)
 
     return state

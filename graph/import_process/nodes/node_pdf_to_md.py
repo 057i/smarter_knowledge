@@ -1,4 +1,3 @@
-import json
 import shutil
 import sys
 import time
@@ -15,6 +14,7 @@ from core.logger import logger
 from graph.import_process.state import ImportGraphState, create_default_state
 
 from utils.path_util import PROJECT_ROOT
+from utils.task_util import add_running_task
 
 load_dotenv(find_dotenv())
 
@@ -192,14 +192,16 @@ def node_pdf_to_md(state: ImportGraphState):
         (不用sdk，因为会报错且不能批量传)
     """
 
-    logger.info(f"进入了节点{sys._getframe().f_code.co_name}")
+    func_name = sys._getframe().f_code.co_name
+    add_running_task(state["task_id"], func_name)
+    logger.info(f"进入了节点{func_name}")
     batch_id = step1_upload_to_mineru(state)
 
     if batch_id:
         step2_get_progress(state, batch_id=batch_id,
                            on_success=lambda state, full_zip_url: step3_upload_zip_to_local(state, full_zip_url))
 
-    logger.info(f"离开了函数{sys._getframe().f_code.co_name}，state状态{state}")
+    logger.info(f"离开了函数{func_name}，state状态{state}")
 
     return state
 
