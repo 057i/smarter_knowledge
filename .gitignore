@@ -223,3 +223,4 @@ doc/*.zip
 doc/*.pdf
 
 pages/
+output/
