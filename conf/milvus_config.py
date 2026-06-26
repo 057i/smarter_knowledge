@@ -8,7 +8,6 @@ load_dotenv()
 
 
 # ===================== 其他配置类（LLM/Embedding）可放在上方，保持原有代码不变 =====================
-# ... 你的LLMConfig、EmbeddingConfig代码 ...
 
 # 定义Milvus向量数据库配置类
 @dataclass
@@ -23,9 +22,9 @@ class MilvusConfig:
 # 实例化Milvus配置对象（和其他配置对象命名风格统一）
 milvus_config = MilvusConfig(
     milvus_url=os.getenv("MILVUS_URL", ""),
-    chunks_collection=os.getenv("CHUNKS_COLLECTION"),
+    chunks_collection=os.getenv("CHUNKS_COLLECTION", ""),
     entity_name_collection=os.getenv("ENTITY_NAME_COLLECTION", ""),
-    item_name_collection=os.getenv("ITEM_NAME_COLLECTION"),
+    item_name_collection=os.getenv("ITEM_NAME_COLLECTION", ""),
     db_name=os.getenv("MILVUS_DB_NAME", "default")
 
 )

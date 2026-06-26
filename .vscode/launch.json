@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python 调试程序: 当前文件",
+      "type": "debugpy",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "env": {},
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "charmrunManaged": true,
+      "charmrunId": "b3e928e4-fd68-4a18-9d45-bac920a3eed0",
+      "charmrunRunMode": "debug",
+      "program": "${file}"
+    }
+  ]
+}

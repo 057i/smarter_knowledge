@@ -1,0 +1,5 @@
+请基于以下用户查询生成一个简洁的回答范文。
+用户查询: {query}
+要求：
+1. 回答要简洁明了，包含核心信息即可
+2. 严格遵守返回格式使用json,{snippet:xxx,content:xxx,img:xxx} 的格式，如果有图片，请放在img字段中，img字段为图片的url，snippet字段为图片的描述，content字段为图片的描述，

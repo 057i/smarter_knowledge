@@ -115,13 +115,13 @@ def fetch_chunks_by_chunk_ids(
     return results
 
 
-def create_hybrid_search_requests(dense_vector, sparse_vector, dense_params=None, sparse_params=None, expr=None,
+def create_hybrid_search_requests(dense, sparse, dense_params=None, sparse_params=None, expr=None,
                                   limit=5):
     """
     构建Milvus混合搜索请求对象
     分别创建稠密/稀疏向量的搜索请求，用于后续混合搜索融合
-    :param dense_vector: 文本生成的稠密向量
-    :param sparse_vector: 文本生成的稀疏向量
+    :param dense: 文本生成的稠密向量
+    :param sparse: 文本生成的稀疏向量
     :param dense_params: 稠密向量搜索参数，默认使用余弦相似度
     :param sparse_params: 稀疏向量搜索参数，默认使用内积相似度
     :param expr: 搜索过滤表达式，用于精准筛选数据
@@ -135,19 +135,19 @@ def create_hybrid_search_requests(dense_vector, sparse_vector, dense_params=None
     if sparse_params is None:
         sparse_params = {"metric_type": "IP"}
 
-    # 构建稠密向量搜索请求，关联Milvus的dense_vector字段
+    # 构建稠密向量搜索请求，关联Milvus的dense字段
     dense_req = AnnSearchRequest(
-        data=[dense_vector],
-        anns_field="dense_vector",
+        data=[dense],
+        anns_field="dense",
         param=dense_params,
         expr=expr,
         limit=limit
     )
 
-    # 构建稀疏向量搜索请求，关联Milvus的sparse_vector字段
+    # 构建稀疏向量搜索请求，关联Milvus的sparse字段
     sparse_req = AnnSearchRequest(
-        data=[sparse_vector],
-        anns_field="sparse_vector",
+        data=[sparse],
+        anns_field="sparse",
         param=sparse_params,
         expr=expr,
         limit=limit

@@ -1,6 +1,5 @@
 import copy
 import re
-import shutil
 import sys
 from pathlib import Path
 
@@ -10,7 +9,7 @@ from conf.llm_config import llm_config
 from core.logger import logger
 from graph.import_process.state import ImportGraphState, create_default_state
 from utils.llm_util import get_llm_client
-from utils.minio_util import batch_upload_to_minio, is_minio_avilable
+from clients.minio_client import batch_upload_to_minio, is_minio_avilable
 from utils.path_util import PROJECT_ROOT
 from core.load_prompt import load_prompt
 from utils.task_util import add_running_task
@@ -152,7 +151,7 @@ def step5_replace_md_img_content(md_content: str = '', summary_and_urls_map: dic
 
 
 def step6_backup_md_file(origin_md_path_obj: Path, new_md_content: str):
-    # 备份并且创建一个新文件写入
+    # 备份并且创建一个新文件写入把他存起来
 
     new_md_path = origin_md_path_obj.parents[0] / f"{origin_md_path_obj.stem}_new.md"
 
@@ -202,6 +201,7 @@ def node_analysis_md_img(state: ImportGraphState):
     # 图片示例
     # ![](images / 048c005b198be5c9fff80ad6a6ba02496f38fa109ec20dbaabde3110f3eb1574.jpg)
 
+    # 后续就用替换成网络url的md文档
     final_md_content = step5_replace_md_img_content(md_content=_md_content, summary_and_urls_map=summary_and_urls_map)
     logger.info(f"替换后的md_content：{final_md_content}")
 

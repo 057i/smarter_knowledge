@@ -7,7 +7,7 @@ from conf.milvus_config import milvus_config
 from conf.embedding_config import embedding_config
 from core.logger import logger
 from graph.import_process.state import ImportGraphState, create_default_state
-from utils.milvus_util import get_milvus_client
+from clients.milvus_client import get_milvus_client
 from utils.task_util import add_running_task
 from utils.utils import escape_milvus_string
 

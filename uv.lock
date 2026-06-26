@@ -1362,6 +1362,20 @@ wheels = [
 ]
 
 [[package]]
+name = "langchain-agent"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langchain" },
+    { name = "langchain-ollama" },
+    { name = "python-dotenv" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0b/b9/09ed3dad6924f8913db3c78d3e1cdbaf46fe0cecdffd9a76e401d68077ec/langchain_agent-0.1.1.tar.gz", hash = "sha256:06fee2853428ffebf41c6dd389989f8106246e5a58d4d3cccc3db7f4257dae95", size = 127139, upload-time = "2025-11-06T14:44:14.868Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ee/10/cd9a2383b7cee8d6d76fcb21b2203b1fa6a42ed7bfd692e8f58899fad55a/langchain_agent-0.1.1-py3-none-any.whl", hash = "sha256:34b0a2d1bbdaffacf3160e100cf66e8be0bfa16fc0370ce27a0453cee21b96c5", size = 11231, upload-time = "2025-11-06T14:44:11.712Z" },
+]
+
+[[package]]
 name = "langchain-classic"
 version = "1.0.8"
 source = { registry = "https://pypi.org/simple" }
@@ -1421,6 +1435,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ee/2b/fffaff399d20a56d40b9562fa19701e91abd72d8c9d9bc8c2673077b56b6/langchain_core-1.4.7.tar.gz", hash = "sha256:7a825d77de0a3f39adbd9d09612a75e85527e14a52c1601089bcc062972d9f2b", size = 952522, upload-time = "2026-06-12T19:23:57.588Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/de/3e/dcdffa60078ae7b3a00ebb4cbbf1a204a14c3609983c604886523a7d4418/langchain_core-1.4.7-py3-none-any.whl", hash = "sha256:bcadd51951140ecdcba98311dbd931ba5de02a5ba8a2288dad5069c1eea2a13d", size = 554941, upload-time = "2026-06-12T19:23:55.826Z" },
+]
+
+[[package]]
+name = "langchain-ollama"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langchain-core" },
+    { name = "ollama" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d4/9b/6641afe8a5bf807e454fd464eddfc7eb2f2df53cb0b29744381171f9c609/langchain_ollama-1.1.0.tar.gz", hash = "sha256:f776f56f6782ae4da7692579b94a6575906118318d1023b455d7207f9d059811", size = 133075, upload-time = "2026-04-07T02:48:00.873Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2c/b2/c2acb076590a98bee2816ed5f285e00df162a34238f9e276e175e14ebc35/langchain_ollama-1.1.0-py3-none-any.whl", hash = "sha256:43ac83a6eacb0f43855810739794dd55019e0d9b17bdcf3ecb3b1991ac3b59dd", size = 31413, upload-time = "2026-04-07T02:47:59.642Z" },
 ]
 
 [[package]]
@@ -2169,6 +2196,19 @@ source = { registry = "https://pypi.org/simple" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c2/f3/d86c845465a2723ad7e1e5c36dcd75ddb82898b3f53be47ebd429fb2fa5d/nvidia_nvtx-13.0.85-py3-none-manylinux1_x86_64.manylinux_2_5_x86_64.whl", hash = "sha256:4936d1d6780fbe68db454f5e72a42ff64d1fd6397df9f363ae786930fd5c1cd4", size = 148047, upload-time = "2025-09-04T08:29:01.761Z" },
     { url = "https://files.pythonhosted.org/packages/a8/64/3708a90d1ebe202ffdeb7185f878a3c84d15c2b2c31858da2ce0583e2def/nvidia_nvtx-13.0.85-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:cb7780edb6b14107373c835bf8b72e7a178bac7367e23da7acb108f973f157a6", size = 148878, upload-time = "2025-09-04T08:28:53.627Z" },
+]
+
+[[package]]
+name = "ollama"
+version = "0.6.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fc/72/5f12423b6b39ca8430fbe56f77fcf4ef60f63067c7c4a2e30e200ed9ec16/ollama-0.6.2.tar.gz", hash = "sha256:936d55daa684f474364c098611c933626f8d6c7d67065c5b7ae0c477b508b07f", size = 53145, upload-time = "2026-04-29T21:21:15.018Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c4/ab/d6722beeb2d10f7a3b9ff49375708904fde18f82b5609a0bc4aeb5996a4d/ollama-0.6.2-py3-none-any.whl", hash = "sha256:3ad7daab28e5a973445c36a73882a3ef698c2ebb00e21e308652741577509f7d", size = 15115, upload-time = "2026-04-29T21:21:13.794Z" },
 ]
 
 [[package]]
@@ -3309,12 +3349,14 @@ dependencies = [
     { name = "flagembedding" },
     { name = "grandalf" },
     { name = "langchain" },
+    { name = "langchain-agent" },
     { name = "langchain-community" },
     { name = "langchain-openai" },
     { name = "loguru" },
     { name = "magic-pdf" },
     { name = "minio" },
     { name = "modelscope" },
+    { name = "pydantic" },
     { name = "pymilvus" },
     { name = "pymilvus-model" },
     { name = "pymongo" },
@@ -3333,12 +3375,14 @@ requires-dist = [
     { name = "flagembedding", specifier = "==1.4.0" },
     { name = "grandalf", specifier = "==0.8" },
     { name = "langchain", specifier = "==1.3.7" },
+    { name = "langchain-agent", specifier = "==0.1.1" },
     { name = "langchain-community", specifier = "==1.0.0a1" },
     { name = "langchain-openai", specifier = "==1.3.2" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "magic-pdf", specifier = "==1.3.12" },
     { name = "minio", specifier = "==7.2.20" },
     { name = "modelscope", specifier = "==1.37.1" },
+    { name = "pydantic", specifier = ">=2.10.6" },
     { name = "pymilvus", specifier = "==3.0.0" },
     { name = "pymilvus-model", specifier = "==0.3.2" },
     { name = "pymongo", specifier = "==4.17.0" },
