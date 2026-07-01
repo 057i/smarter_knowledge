@@ -52,7 +52,7 @@ def get_mongo_client():
     return _mongo_client
 
 
-def clear_messages_by_session_id(session_id: str):
+def delete_messages_by_session_id(session_id: str):
     """
     根据会话ID删除所有消息记录
     :param session_id: 会话ID
@@ -75,10 +75,14 @@ def add_message(session_id: str = "",
                 role: str = "",
                 text: str = "",
                 rewritten_query: str = "",
+                task_id: str = "",
+                image_urls: list = [],
                 item_names: list[str] | None = None,
                 message_id: str | None = None):
     """
     添加一条消息记录
+    :param task_id:
+    :param image_urls:
     :param session_id: 会话ID
     :param role: 消息角色
     :param text: 消息内容
@@ -95,6 +99,8 @@ def add_message(session_id: str = "",
             "rewritten_query": rewritten_query,
             "item_names": item_names,
             "session_id": session_id,
+            "task_id": task_id,
+            "image_urls": image_urls,
             "ts": datetime.datetime.now().timestamp()
         }
         content = {content_item_name: content_item_value if content_item_value else None
@@ -130,28 +136,45 @@ def add_message(session_id: str = "",
 def get_messages_by_session_id(session_id: str, limit: int = 10):
     """
     根据会话ID获取指定条消息记录
-    :param limit:
+    :param limit: 返回消息数量上限（默认 10）
     :param session_id: 会话ID
-    :return: 消息记录列表
+    :return: 消息记录列表（按时间正序，从旧到新）
     """
     try:
         mongo_client = get_mongo_client()
+
+        # 参数校验
+        if limit <= 0:
+            limit = 10
+
         # find返回的是一个cursor游标，需要将其转换为列表
-        # 按时间倒序排
+        # 按时间倒序取最新 N 条，然后反转成正序（旧→新）
         cursor = mongo_client.chat_messages.find({
             "session_id": session_id
         }).sort([("ts", -1)]).limit(limit)
+
         messages = []
-        for message in list(cursor):
+        for message in cursor:
+            # 安全处理 _id 字段
+            msg_id = message.get("_id")
+            if not msg_id:
+                logger.warning(f"消息记录缺少 _id 字段：{message}")
+                continue
+
             temp_message = {
                 **message,
-                "id": str(message["_id"])
+                "id": str(msg_id)
             }
             del temp_message["_id"]
             messages.append(temp_message)
+
+        # 反转成正序（从旧到新，符合对话流）
+        messages.reverse()
         return messages
+
     except Exception as e:
         logger.error(f"获取消息记录失败: {e}")
+        return []  # 返回空列表而不是 None，避免调用方报错
 
 
 def update_message_item_names_by_id(ids: list[str], item_names: list[str]) -> int:
@@ -182,10 +205,10 @@ def update_message_item_names_by_id(ids: list[str], item_names: list[str]) -> in
 
 
 if __name__ == "__main__":
-    # get_messages_by_session_id(session_id="test")
+    logger.info(get_messages_by_session_id(session_id="sess-ev5jxw8n67omr09auo3"))
     # update_message_item_names_by_id(["6a3a542fe3739bb50dd298a4"], ["666", "555"])
-    # clear_messages_by_session_id("test")
-    add_message(
-        session_id="6a3ccf008207c630ca70f890",
-        text="RS PRO RS-12数字万用表规格什么样",
-        role="user", item_names=["123", "456"])
+    # delete_messages_by_session_id("test")
+    # add_message(
+    #     session_id="6a3ccf008207c630ca70f890",
+    #     text="RS PRO RS-12数字万用表规格什么样",
+    #     role="user", item_names=["123", "456"])

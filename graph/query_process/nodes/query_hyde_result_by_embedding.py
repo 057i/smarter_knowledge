@@ -8,6 +8,7 @@ from core.load_prompt import load_prompt
 from core.logger import logger
 from utils.embedding_util import generate_embeddings
 from utils.llm_util import get_llm_client
+from utils.task_util import add_running_task, add_done_task
 
 """
     该节点是只模型生成假设性结果，用假设性结果生成向量，到知识库中查找最相似的几条切片
@@ -68,6 +69,7 @@ def step3_query_similar_chunks(dense: list, sparse: list):
 def query_hyde_result_by_embedding(state):
     func_name = sys._getframe().f_code.co_name
     logger.info(f"进入了函数{func_name}")
+    add_running_task(state["task_id"], func_name, state["is_stream"])
 
     rewritten_query = state["rewritten_query"]
 
@@ -75,14 +77,13 @@ def query_hyde_result_by_embedding(state):
     dense, sparse = step2_generate_embedding(hyde_doc)
     hyde_embedding_chunks = step3_query_similar_chunks(dense, sparse)
 
-    # "hyde_embedding_chunks": res[0] if res else [],
-    # "hyde_doc": hyde_doc,
+    logger.info(f"离开了函数{func_name}，当前状态为：{state}")
+    add_done_task(state["task_id"], func_name, state["is_stream"])
 
     return {
         "hyde_embedding_chunks": hyde_embedding_chunks,
         "hyde_doc": hyde_doc,
     }
-    logger.info(f"离开了函数{func_name}，当前状态为：{state}")
 
 
 if __name__ == "__main__":

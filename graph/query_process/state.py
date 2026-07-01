@@ -5,6 +5,7 @@ from typing import TypedDict, List
 class QueryState(TypedDict):
     session_id: str  # 会话唯一标识
     original_query: str  # 用户原始问题
+    task_id: str  # 任务ID
 
     # 检索过程中的中间数据
     embedding_chunks: list  # 普通向量检索回来的切片
@@ -19,6 +20,7 @@ class QueryState(TypedDict):
     # 生成过程中的数据
     prompt: str  # 组装好的 Prompt
     answer: str  # 最终生成的答案
+    is_chit_chat: bool  # 是否为闲聊
 
     # 辅助信息
     item_names: list[str]  # 提取出的实体名称
@@ -30,6 +32,7 @@ class QueryState(TypedDict):
 default_query_state: QueryState = {
     "session_id": "",
     "original_query": "",
+    "task_id": "",
     "embedding_chunks": [],
     "hyde_embedding_chunks": [],
     "kg_chunks": [],
@@ -41,7 +44,8 @@ default_query_state: QueryState = {
     "item_names": [],
     "rewritten_query": "",
     "history": [],
-    "is_stream": False
+    "is_stream": False,
+    "is_chit_chat": False
 }
 
 

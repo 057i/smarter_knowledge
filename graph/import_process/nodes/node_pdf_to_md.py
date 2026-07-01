@@ -98,27 +98,60 @@ def step2_get_progress(state: ImportGraphState, batch_id: str,
     # 轮询获取下载结果
     while True:
         if time.time() - start_time > timeout_seconds:
-            logger.error(f"获取pdf文件解析进度超时")
+            logger.error(f"获取pdf文件解析进度超时，已轮询 {timeout_seconds} 秒")
             raise TimeoutError(f"获取pdf文件解析进度超时")
+
         time.sleep(interval)
-        res = requests.get(url, headers=header)
-        if res.status_code == 200 and res.json()["code"] == 0:
-            try:
-                result = res.json()["data"]["extract_result"]
-                if result and result[0]["state"] == "done":
-                    logger.info(f"获取pdf文件解析进度成功,进度为{result[0]["full_zip_url"]}")
 
-                    # 回调执行下一步
-                    if on_success:
-                        on_success(state, result[0]["full_zip_url"])
+        try:
+            res = requests.get(url, headers=header, timeout=10)
+            logger.info(f"轮询 MinerU 进度，batch_id: {batch_id}, 状态码: {res.status_code}")
 
-                    break
+            if res.status_code == 200:
+                res_data = res.json()
+                logger.info(f"MinerU 返回数据: {res_data}")
 
+                if res_data.get("code") == 0:
+                    try:
+                        result = res_data["data"]["extract_result"]
 
-            # return res.json()["data"]["full_zip_url"]
-            except Exception as e:
-                logger.error(f"获取pdf文件解析进度失败,错误信息{str(e)}")
-                break
+                        if result and len(result) > 0:
+                            current_state = result[0].get("state", "unknown")
+                            logger.info(f"MinerU 当前状态: {current_state}")
+
+                            if current_state == "done":
+                                full_zip_url = result[0].get("full_zip_url")
+                                logger.info(f"获取pdf文件解析进度成功，下载地址: {full_zip_url}")
+
+                                # 回调执行下一步
+                                if on_success:
+                                    on_success(state, full_zip_url)
+
+                                break
+                            elif current_state == "failed":
+                                err_msg = result[0].get("err_msg", "未知错误")
+                                logger.error(f"MinerU 处理文件失败: {err_msg}")
+                                raise RuntimeError(f"MinerU 处理文件失败: {err_msg}")
+                            else:
+                                logger.info(f"MinerU 处理中，当前状态: {current_state}，继续轮询...")
+                        else:
+                            logger.warning(f"MinerU 返回结果为空，继续轮询...")
+
+                    except KeyError as e:
+                        logger.error(f"解析 MinerU 响应数据失败，缺少字段: {e}，继续轮询...")
+                    except Exception as e:
+                        logger.error(f"处理 MinerU 响应失败: {e}，继续轮询...")
+                else:
+                    logger.warning(f"MinerU 返回 code 非 0: {res_data.get('code')}，消息: {res_data.get('message')}，继续轮询...")
+            else:
+                logger.warning(f"MinerU API 返回非 200 状态码: {res.status_code}，响应: {res.text[:200]}，继续轮询...")
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"请求 MinerU 超时，继续轮询...")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"请求 MinerU 失败: {e}，继续轮询...")
+        except Exception as e:
+            logger.error(f"轮询过程中发生未知错误: {e}，继续轮询...")
 
 
 def step3_upload_zip_to_local(state: ImportGraphState, zip_upload_url: str):
@@ -195,13 +228,24 @@ def node_pdf_to_md(state: ImportGraphState):
     func_name = sys._getframe().f_code.co_name
     add_running_task(state["task_id"], func_name)
     logger.info(f"进入了节点{func_name}")
-    batch_id = step1_upload_to_mineru(state)
 
-    if batch_id:
-        step2_get_progress(state, batch_id=batch_id,
-                           on_success=lambda state, full_zip_url: step3_upload_zip_to_local(state, full_zip_url))
+    try:
+        batch_id = step1_upload_to_mineru(state)
 
-    logger.info(f"离开了函数{func_name}，state状态{state}")
+        if batch_id:
+            step2_get_progress(state, batch_id=batch_id,
+                               on_success=lambda state, full_zip_url: step3_upload_zip_to_local(state, full_zip_url))
+        else:
+            logger.error(f"上传到 MinerU 失败，未获取到 batch_id")
+            raise RuntimeError("上传到 MinerU 失败")
+
+        logger.info(f"离开了函数{func_name}，state状态{state}")
+
+    except (TimeoutError, RuntimeError) as e:
+        # MinerU 处理超时或失败，记录错误并抛出异常，停止图执行
+        logger.error(f"MinerU 处理失败: {e}")
+        add_done_task(state["task_id"], func_name)  # 标记当前节点完成（虽然失败了）
+        raise  # 重新抛出异常，让图执行停止
 
     return state
 

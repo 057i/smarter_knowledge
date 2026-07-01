@@ -1,19 +1,19 @@
 import json
 import sys
-import uuid
 
 from clients.milvus_client import (
     get_milvus_client,
     create_hybrid_search_requests,
     hybrid_search,
 )
-from clients.mongo_client import get_messages_by_session_id, update_message_item_names_by_id
+from clients.mongo_client import get_messages_by_session_id, update_message_item_names_by_id, add_message
 from conf.milvus_config import milvus_config
 from core.load_prompt import load_prompt
 from core.logger import logger
 from graph.query_process.state import create_default_query_state, QueryState
 from utils.embedding_util import generate_embeddings
 from utils.llm_util import get_llm_client
+from utils.task_util import add_running_task, add_done_task
 
 """
 该节点是通过获取session_id从mongo中往前拿10条对话当做上下文取代指代词，然后拼接上当前问题，
@@ -56,7 +56,36 @@ def step1_get_original_query_and_history(state: QueryState):
         raise RuntimeError(f"获取历史记录失败{e}")
 
 
-def step2_get_item_names_and_rewritten_query(original_query, history):
+def step2_is_chit_chat(state: QueryState):
+    """
+    判断是否是闲聊，要是闲聊不查询库 直接返回
+    :param state:
+    :return:
+    """
+    try:
+        history = state.get("history", [])
+        original_query = state.get("original_query", "")
+        prompt = load_prompt("is_chit_chat_message", history=history, query=original_query)
+        llm = get_llm_client()
+        res = llm.invoke(prompt).content
+        res = json.loads(res)
+        is_chit_chat = res.get("is_chit_chat", False)
+        _answer = res.get("answer", "")
+        logger.info(f"判断是否是闲聊结果为：{res},{history},{original_query}")
+
+        if is_chit_chat:
+            logger.info("当前为闲聊，不查询库")
+            state["is_chit_chat"] = True
+            state["answer"] = _answer
+
+        return is_chit_chat
+
+    except Exception as e:
+        logger.error(f"判断是否是闲聊失败: {e}")
+        raise RuntimeError(f"判断是否是闲聊失败: {e}")
+
+
+def step3_get_item_names_and_rewritten_query(original_query, history):
     """
     获取实体名称列表和重写后的问题
     :param original_query:
@@ -92,7 +121,7 @@ def step2_get_item_names_and_rewritten_query(original_query, history):
         raise RuntimeError(f"获取实体名称列表和重写后的问题失败: {e}")
 
 
-def step3_get_embedding_item_names(item_names: list):
+def step4_get_embedding_item_names(item_names: list):
     """
     获取实体名称的向量
     :param item_names:
@@ -104,7 +133,7 @@ def step3_get_embedding_item_names(item_names: list):
     return embedding_item_name
 
 
-def step4_generate_hybird_search(item_names: list, embedding_item_names: list):
+def step5_generate_hybird_search(item_names: list, embedding_item_names: list):
     """
     做milvus混合检索
     :param item_names
@@ -155,7 +184,7 @@ def step4_generate_hybird_search(item_names: list, embedding_item_names: list):
     return final_matches
 
 
-def step5_ensure_itemname_valid(result: list) -> dict:
+def step6_ensure_itemname_valid(result: list) -> dict:
     """
     对齐实体名且筛除重复和无用项
     :param result:
@@ -206,7 +235,7 @@ def step5_ensure_itemname_valid(result: list) -> dict:
     }
 
 
-def step6_check_confirm_information(state: QueryState, session_id: str, valid_result: dict, history: list,
+def step7_check_confirm_information(state: QueryState, session_id: str, valid_result: dict, history: list,
                                     rewritten_query: str):
     """
     检查需要确认的信息，如果有高可信度且唯一  直接进入下一个节点
@@ -246,8 +275,16 @@ def step6_check_confirm_information(state: QueryState, session_id: str, valid_re
 
     elif options:
         logger.info(f"待用户交互的待确认实体为：{options}")
-        option_str = "、".join([option["item_name"] for option in options])
-        answer = f"您是想问以下哪个产品：{option_str}？请明确一下型号。"
+        option_names = [option.get("item_name", "") for option in options]
+        option_names = list(set(option_names))
+        # 只有一个实体的话
+        answer = ""
+
+        if len(option_names) == 1:
+            answer = f"您是想问{option_names[0]}吗"
+        elif len(option_names) > 1:
+            option_str = "、".join(option_names)
+            answer = f"您是想问以下哪个产品：{option_str}？请明确一下型号。"
         state["answer"] = answer
         state["item_names"] = []
         return state
@@ -269,73 +306,53 @@ def confirm_item_name_by_user_query(state: QueryState):
 
     func_name = sys._getframe().f_code.co_name
     logger.info(f"进入了函数{func_name}")
+    add_running_task(state["task_id"], func_name, state["is_stream"])
+
+    # 存储用户提问到 MongoDB
+    add_message(
+        session_id=state["session_id"],
+        role="user",
+        text=state["original_query"],
+        task_id=state["task_id"],
+    )
 
     original_query, history = step1_get_original_query_and_history(state)
-    logger.info(f"原始问题为：{original_query},{history}")
-    item_names, rewritten_query = step2_get_item_names_and_rewritten_query(
+    is_chit_chat = step2_is_chit_chat(state)
+    if is_chit_chat:
+        add_done_task(state["task_id"], func_name, state["is_stream"])
+        return state
+
+    item_names, rewritten_query = step3_get_item_names_and_rewritten_query(
         original_query=original_query, history=history
     )
 
     if item_names:
         state["item_names"] = item_names
 
-        state["rewritten_query"] = rewritten_query or original_query
+    state["rewritten_query"] = rewritten_query or original_query
 
-    embedding_item_names = step3_get_embedding_item_names(item_names=item_names)
+    embedding_item_names = step4_get_embedding_item_names(item_names=item_names)
 
     # 去milvus中用稀疏和稠密向量做混合检索，milvus内置混合检索，自己配检索器
-    hybrid_search_result = step4_generate_hybird_search(
+    hybrid_search_result = step5_generate_hybird_search(
         item_names=item_names, embedding_item_names=embedding_item_names
     )
 
     # 5.检索对其，并判实体名是否有效
-    valid_result = step5_ensure_itemname_valid(hybrid_search_result)
-
-    logger.info(f"5.检索对其，并判实体名是否有效为：{valid_result}")
+    valid_result = step6_ensure_itemname_valid(hybrid_search_result)
 
     # 6.判断是更新会话列表还是和用户做确认实体的操作
-    step6_check_confirm_information(state, session_id=state["session_id"], valid_result=valid_result, history=history,
+    step7_check_confirm_information(state, session_id=state["session_id"], valid_result=valid_result, history=history,
                                     rewritten_query=rewritten_query)
+    add_done_task(state["task_id"], func_name, state["is_stream"])
 
     logger.info(f"离开了函数{func_name}，当前状态为：{state}")
-
-
-def test():
-    item_names = ['RS PRO RS-12数字万用表']
-    embedding_item_names = generate_embeddings(item_names)
-    for i in range(len(item_names)):
-        current_dense = embedding_item_names["dense"][i]
-        current_sparse = embedding_item_names["sparse"][i]
-
-        reqs = create_hybrid_search_requests(
-            dense=current_dense, sparse=current_sparse
-        )
-        client = get_milvus_client()
-        res = hybrid_search(
-            client,
-            "smarter_knowledge",
-            reqs,
-            norm_score=True,
-            ranker_weights=(0.85, 0.15),
-            limit=5,
-            output_fields=["item_name"],
-            # search_params={'ef': 300}
-        )
-        matches = []
-        # 结果是一个列表包列表
-        if res and res[0]:
-            for hit in res[0]:
-                matches.append({
-                    "item_name": hit.get("entity", {}).get("item_name", ""),
-                    "score": hit.get("distance", 0.0)
-                })
-
-            logger.info(f"{item_names[i]}的匹配结果为：{matches}")
+    return state
 
 
 if __name__ == "__main__":
     state = create_default_query_state(
-        session_id="6a3ccf008207c630ca70f890", original_query="他的规格什么样"
+        session_id="6a3ccf008207c630ca70f890", original_query="他是谁"
     )
     print("进入 step4_generate_hybrid_search")
     confirm_item_name_by_user_query(state)

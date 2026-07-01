@@ -11,7 +11,7 @@
               <option name="cwd" value="$PROJECT_DIR$" />
               <option name="model" value="claude-opus-4-8" />
               <option name="permissionMode" value="bypassPermissions" />
-              <option name="reasoningEffort" value="medium" />
+              <option name="reasoningEffort" value="high" />
             </TabSessionState>
           </value>
         </entry>

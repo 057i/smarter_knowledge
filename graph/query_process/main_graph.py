@@ -5,8 +5,6 @@ from graph.query_process.nodes.query_hyde_result_by_embedding import (
     query_hyde_result_by_embedding,
 )
 
-from graph.query_process.nodes.decorator_result_by_llm import decorator_result_by_llm
-
 from graph.query_process.nodes.query_result_by_embedding import (
     query_result_by_embedding,
 )
@@ -18,7 +16,7 @@ from graph.query_process.nodes.query_result_by_mcp import query_result_by_mcp
 from graph.query_process.nodes.confirm_item_name_by_user_query import (
     confirm_item_name_by_user_query,
 )
-from graph.query_process.state import QueryState
+from graph.query_process.state import QueryState, create_default_query_state
 
 query_graph_builder = StateGraph(state_schema=QueryState)
 """
@@ -48,7 +46,6 @@ query_graph_builder.add_node(
     "order_embedding_result_by_rrf", order_embedding_result_by_rrf
 )
 query_graph_builder.add_node("order_result_by_rerank", order_result_by_rerank)
-query_graph_builder.add_node("decorator_result_by_llm", decorator_result_by_llm)
 query_graph_builder.add_node("answer_question", answer_question)
 
 query_graph_builder.set_entry_point("confirm_item_name_by_user_query")
@@ -65,13 +62,14 @@ def confirm_route(state: QueryState):
 
         return "answer_question"
     # 三路并行
-    return (
+    return [
         "query_result_by_embedding",
         "query_hyde_result_by_embedding",
         "query_result_by_mcp",
-    )
+    ]
 
 
+# 写完条件边后面还要正常写一次  不然后续节点会执行多次
 query_graph_builder.add_conditional_edges(
     "confirm_item_name_by_user_query",
     confirm_route,
@@ -85,19 +83,29 @@ query_graph_builder.add_conditional_edges(
 
 # 三路并行搜索，手动rrf融合算出最终排名，rrf适合做粗排，只看排名
 query_graph_builder.add_edge(
-    "query_result_by_embedding", "order_embedding_result_by_rrf"
+    ["query_result_by_embedding", "query_hyde_result_by_embedding", "query_result_by_mcp"],
+    "order_embedding_result_by_rrf",
 )
-query_graph_builder.add_edge(
-    "query_hyde_result_by_embedding", "order_embedding_result_by_rrf"
-)
-query_graph_builder.add_edge("query_result_by_mcp", "order_embedding_result_by_rrf")
+# query_graph_builder.add_edge(
+#     "query_result_by_embedding", "order_embedding_result_by_rrf"
+# )
+# query_graph_builder.add_edge(
+#     "query_hyde_result_by_embedding", "order_embedding_result_by_rrf"
+# )
+# query_graph_builder.add_edge("query_result_by_mcp", "order_result_by_rerank")
 
 # 因为rerank一般很贵，所以rerank放在最后，他适合做精排
 query_graph_builder.add_edge("order_embedding_result_by_rrf", "order_result_by_rerank")
-query_graph_builder.add_edge("order_result_by_rerank", "decorator_result_by_llm")
-query_graph_builder.add_edge("decorator_result_by_llm", "answer_question")
+query_graph_builder.add_edge("order_result_by_rerank", "answer_question")
 query_graph_builder.add_edge("answer_question", END)
 
 query_graph = query_graph_builder.compile()
 
-logger.info(f"query_graph:{query_graph.get_graph().print_ascii()}")
+# logger.info(f"query_graph:{query_graph.get_graph().print_ascii()}")
+
+if __name__ == "__main__":
+    state = create_default_query_state(
+        session_id="6a3ccf008207c630ca70f890", original_query="他的规格什么样"
+    )
+    for chunk in query_graph.stream(state):
+        print(f"chunk {chunk}")

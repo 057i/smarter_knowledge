@@ -4,6 +4,7 @@ from clients.milvus_client import create_hybrid_search_requests, get_milvus_clie
 from conf.milvus_config import milvus_config
 from core.logger import logger
 from utils.embedding_util import generate_embeddings
+from utils.task_util import add_running_task, add_done_task
 
 """
     该节点用来将重写的用户问题向量化后，用混合搜索找到结果放到embedding_chunks
@@ -19,6 +20,7 @@ from utils.embedding_util import generate_embeddings
 def get_hybird_result(chunks: dict) -> list:
     current_dense = chunks["dense"][0]
     current_sparse = chunks["sparse"][0]
+    logger.info(f"开始做混合搜索，当前用户问题稀疏向量化结果为：{current_sparse}")
     reqs = create_hybrid_search_requests(
         dense=current_dense, sparse=current_sparse
     )
@@ -39,16 +41,15 @@ def get_hybird_result(chunks: dict) -> list:
 def query_result_by_embedding(state):
     func_name = sys._getframe().f_code.co_name
     logger.info(f"进入了函数{func_name}")
+    add_running_task(state["task_id"], func_name, state["is_stream"])
 
     rewritten_query = state["rewritten_query"]
-
     rewritten_query_chunk_list = generate_embeddings([rewritten_query])
-
     if not rewritten_query_chunk_list:
         raise RuntimeError("用户问题向量化失败")
-
     embedding_chunks = get_hybird_result(rewritten_query_chunk_list)
     logger.info(f"离开了函数{func_name}，当前状态为：{state}")
+    add_done_task(state["task_id"], func_name, state["is_stream"])
 
     return {"embedding_chunks": embedding_chunks}
 

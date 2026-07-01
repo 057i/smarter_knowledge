@@ -43,5 +43,7 @@ def node_entry(state: ImportGraphState):
         logger.error(f"节点{func_name}运行错误，{file_name_with_suffix}是不支持的文件类型")
         return state
 
+    # 完成当前节点
+    add_done_task(state["task_id"], func_name)
 
     return state

@@ -6,6 +6,7 @@ from win32com.server import exception
 from core.logger import logger
 from graph.query_process.nodes.query_hyde_result_by_embedding import query_hyde_result_by_embedding
 from graph.query_process.nodes.query_result_by_embedding import query_result_by_embedding
+from utils.task_util import add_running_task, add_done_task
 
 """
     该节点是对embedding过的节点做rrf重排，取top-k
@@ -64,6 +65,8 @@ def order_embedding_by_rrf_rank(source_list: list[tuple[list, float]], k: int = 
 def order_embedding_result_by_rrf(state):
     func_name = sys._getframe().f_code.co_name
     logger.info(f"进入了函数{func_name}")
+    add_running_task(state["task_id"], func_name, state["is_stream"])
+
     embedding_chunks = state["embedding_chunks"]
     hyde_embedding_chunks = state["hyde_embedding_chunks"]
     source_list = [(embedding_chunks, 1.0), (hyde_embedding_chunks, 1.0)]
@@ -71,6 +74,8 @@ def order_embedding_result_by_rrf(state):
     order_embedding_by_rrf_result = order_embedding_by_rrf_rank(source_list=source_list, k=60, limit=10)
     rrf_chunks = [result_item[2] for result_item in order_embedding_by_rrf_result]
     logger.info(f"rrf排序结果：{order_embedding_by_rrf_result}")
+    add_done_task(state["task_id"], func_name, state["is_stream"])
+
     logger.info(f"离开了函数{func_name}，当前状态为：{state}")
     return {"rrf_chunks": rrf_chunks}
 

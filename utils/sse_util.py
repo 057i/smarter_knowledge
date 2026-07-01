@@ -6,21 +6,24 @@ from fastapi import Request
 
 
 class SSEEvent:
-    READY = "ready"         # 连接建立
-    PROGRESS = "progress"   # 任务节点进度
-    DELTA = "delta"         # LLM 流式输出增量
-    FINAL = "final"         # 最终完整答案
-    ERROR = "error"         # 错误信息
-    CLOSE = "__close__"     # 关闭连接信号
+    READY = "ready"  # 连接建立
+    PROGRESS = "progress"  # 任务节点进度
+    DELTA = "delta"  # LLM 流式输出增量
+    FINAL = "final"  # 最终完整答案
+    FINAL_WITH_NO_ANSWER = "final_with_no_answer"  # 模型没有找到答案的输出或者是闲聊
+    ERROR = "error"  # 错误信息
+    CLOSE = "__close__"  # 关闭连接信号
 
 
 # 全局 SSE 会话队列存储
 # Key: session_id, Value: queue.Queue
 _session_stream: Dict[str, queue.Queue] = {}
 
+
 def get_sse_queue(session_id: str) -> Optional["queue.Queue"]:
     """获取指定 session 的队列"""
     return _session_stream.get(session_id)
+
 
 def create_sse_queue(session_id: str) -> "queue.Queue":
     """创建并注册一个新的 SSE 队列"""
@@ -29,16 +32,19 @@ def create_sse_queue(session_id: str) -> "queue.Queue":
     _session_stream[session_id] = q
     return q
 
+
 def remove_sse_queue(session_id: str):
     """移除指定 session 的队列"""
     print(f"[SSE] Removing queue for session: {session_id}")
     _session_stream.pop(session_id, None)
+
 
 def _sse_pack(event: str, data: Dict[str, Any]) -> str:
     """打包 SSE 消息格式"""
     payload = json.dumps(data, ensure_ascii=False)
     # print(f"[SSE] Packing event: {event}, payload: {payload[:50]}...")
     return f"event: {event}\ndata: {payload}\n\n"
+
 
 def push_to_session(session_id: str, event: str, data: Dict[str, Any]):
     """
@@ -51,6 +57,7 @@ def push_to_session(session_id: str, event: str, data: Dict[str, Any]):
     else:
         print(f"[SSE] Warning: No queue found for session {session_id} when pushing {event}")
 
+
 async def sse_generator(session_id: str, request: Request):
     """
     SSE 生成器，用于 FastAPI 的 StreamingResponse
@@ -59,7 +66,8 @@ async def sse_generator(session_id: str, request: Request):
     stream_queue = get_sse_queue(session_id)
     if stream_queue is None:
         # 如果没有对应的队列，直接结束
-        print(f"[SSE] Error: Queue not found for session {session_id}. Available sessions: {list(_session_stream.keys())}")
+        print(
+            f"[SSE] Error: Queue not found for session {session_id}. Available sessions: {list(_session_stream.keys())}")
         return
 
     loop = asyncio.get_running_loop()
@@ -76,7 +84,7 @@ async def sse_generator(session_id: str, request: Request):
                 break
 
             try:
-                # 使用 run_in_executor 避免阻塞 async 事件循环
+                # 使用 run_in_executor 避免阻塞 async 事件循环,仅用于同步函数
                 msg = await loop.run_in_executor(None, stream_queue.get, True, 1.0)
             except queue.Empty:
                 # print(f"[SSE] Queue empty for {session_id}, waiting...")
@@ -84,7 +92,7 @@ async def sse_generator(session_id: str, request: Request):
 
             event = msg.get("event")
             data = msg.get("data")
-            
+
             # print(f"[SSE] Yielding event {event} for {session_id}")
 
             # 特殊关闭事件

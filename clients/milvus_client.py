@@ -193,5 +193,5 @@ def hybrid_search(client, collection_name, reqs, ranker_weights=(0.5, 0.5), norm
         logger.info(f"Milvus混合搜索完成，集合[{collection_name}]共检索到{len(res[0])}条结果")
         return res
     except Exception as e:
-        logger.error(f"Milvus混合搜索执行失败，集合[{collection_name}]：{str(e)}", exc_info=True)
+        logger.exception(f"Milvus混合搜索执行失败，集合[{collection_name}]：{str(e)}", exc_info=True)
         return None
